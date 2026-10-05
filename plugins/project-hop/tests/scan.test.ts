@@ -27,8 +27,9 @@ test('folders sort by last activity, unused ones last by name', () => {
 
 test('repositories get their branch and a dirty mark', () => {
   const projects = parseProjects('/p', [`mods${F}9${F}1${F}1`, `notes${F}0${F}0${F}0`].join('\n'))
-  const git = parseGit([`mods${F}main${F}1`, `broken${F}${F}0`, ''].join('\n'))
-  expect([...git.keys()]).toEqual(['mods'])
+  const git = parseGit([`mods${F}main${F}1`, `broken${F}${F}0`, `cloned${F}dev${F}2`, ''].join('\n'))
+  expect([...git.keys()]).toEqual(['mods', 'cloned'])
+  expect(git.get('cloned')).toEqual({ branch: 'dev', dirty: false, unchecked: true })
   const merged = withGit(projects, git)
   expect(merged[0]?.git).toEqual({ branch: 'main', dirty: true })
   expect(merged[1]?.git).toBeUndefined()

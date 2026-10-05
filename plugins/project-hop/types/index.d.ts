@@ -11,7 +11,8 @@ export type Project = {
 }
 
 // A repository's checked-out branch (or short commit when detached) and whether its tree has changes.
-export type GitState = { branch: string; dirty: boolean }
+// `unchecked`: its config defines commands git status could run, so status was never asked.
+export type GitState = { branch: string; dirty: boolean; unchecked?: true }
 
 // One saved conversation of a project, newest first in a list.
 export type SessionInfo = {

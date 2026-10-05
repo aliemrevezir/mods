@@ -83,7 +83,7 @@ const openProject = async ($: EngineInterface, root: string, project: Project) =
   await update($, view, (): HopView => ({ kind: 'sessions', root, project, sessions, page: 0 }))
 }
 
-const gitLabel = (git: Project['git']): string => (git ? `⎇ ${clip(git.branch, 14)}${git.dirty ? ' ●' : ''}` : '')
+const gitLabel = (git: Project['git']): string => (git ? `⎇ ${clip(git.branch, 14)}${git.unchecked ? ' ?' : git.dirty ? ' ●' : ''}` : '')
 
 // The band only scrolls by wheel in the fullscreen layout, so the lists page instead.
 const turnPage = ($: EngineInterface, by: number) =>

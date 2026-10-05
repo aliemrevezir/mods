@@ -19,16 +19,19 @@ done
 
 // One line per repository child of $1: name, branch (short commit when detached), 1 when the tree has changes.
 // Every repository is asked at once, since a large one's status can take a while.
-// A cloned repository's own config could name a command for status to run (core.fsmonitor), so
-// that is switched off from the command line, which outranks it; --no-optional-locks keeps
-// status from rewriting the index under a git the person is running there.
+// A cloned repository's own config can name commands status would run: core.fsmonitor is switched
+// off from the command line, which outranks it; a repository whose config (or a file it includes)
+// defines a filter or an external diff is not asked for status at all, and reports 2.
+// Reading config runs nothing. --no-optional-locks keeps status from rewriting the index.
 export const GIT_SCRIPT = `
 for d in "$1"/*/; do
   d="\${d%/}"; [ -e "$d/.git" ] || continue
   (
     g() { git -C "$d" -c core.fsmonitor=false -c core.untrackedCache=false --no-optional-locks "$@" 2>/dev/null; }
     b=$(g symbolic-ref --short -q HEAD || g rev-parse --short HEAD)
-    x=0; [ -n "$(g status --porcelain --ignore-submodules | head -1)" ] && x=1
+    x=0
+    if g config --local --includes --name-only --get-regexp '^filter\\.|^diff\\.external$' >/dev/null; then x=2
+    elif [ -n "$(g status --porcelain --ignore-submodules | head -1)" ]; then x=1; fi
     printf '%s${FIELD}%s${FIELD}%s\\n' "$(basename "$d")" "$b" "$x"
   ) &
 done
@@ -39,7 +42,9 @@ export const parseGit = (stdout: string): Map<string, GitState> =>
   new Map(
     stdout.split('\n').flatMap(line => {
       const [name = '', branch = '', dirty = '0'] = line.split(FIELD)
-      return line.includes(FIELD) && name !== '' && branch !== '' ? [[name, { branch, dirty: dirty === '1' }] as const] : []
+      if (!line.includes(FIELD) || name === '' || branch === '') return []
+      const state: GitState = dirty === '2' ? { branch, dirty: false, unchecked: true } : { branch, dirty: dirty === '1' }
+      return [[name, state] as const]
     }),
   )
 
