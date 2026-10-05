@@ -4,6 +4,8 @@ A [Claude Code](https://claude.com/claude-code) mod that keeps every prompt you 
 
 Built on top of [oikon48/prompt-rail](https://github.com/oikon48/prompt-rail): the same rail and dock, extended with quote-reply.
 
+![prompt-dock: previewing prompts on the rail, jumping from the dock, quoting a selection](assets/demo.gif)
+
 ## What it does
 
 **Rail (default).** A thin rail sits above the input, one tick per prompt. The thick tick is the prompt you are looking at in the transcript.
@@ -84,6 +86,8 @@ claude plugin test .
 ```
 
 The pure logic (pairing prompts with transcript rows, picking the current prompt, the quote format) lives in `hooks/rail.ts` and `hooks/exchanges.ts`; drawing and events live in `hooks/register.tsx`.
+
+The demo GIF is drawn, not recorded: `python3 assets/make_demo.py` (needs Pillow) rebuilds `assets/demo.gif`.
 
 ## License
 

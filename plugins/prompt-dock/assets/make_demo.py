@@ -101,7 +101,7 @@ class Frame:
             if bg:
                 d.rectangle([x, y, x + CW, y + CH], fill=bg)
             if ch != ' ':
-                d.text((x, y + 2), ch, font=BOLD if bold else FONT, fill=fg)
+                d.text((x, y + 2), ch, font=BOLD if bold and ch.isascii() else FONT, fill=fg)
         if cursor:
             draw_cursor(d, *cursor, click)
         return img
@@ -259,7 +259,7 @@ def build():
 def main():
     frames = build()
     out = Path(__file__).with_name('demo.gif')
-    images = [im.convert('P', palette=Image.ADAPTIVE, colors=64) for im, _ in frames]
+    images = [im.convert('P', palette=Image.ADAPTIVE, colors=128) for im, _ in frames]
     images[0].save(out, save_all=True, append_images=images[1:],
                    duration=[ms for _, ms in frames], loop=0, optimize=True, disposal=1)
     print(f'{out} — {len(frames)} frames, {out.stat().st_size // 1024} KB')
