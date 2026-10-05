@@ -1,4 +1,4 @@
-import type { Project, SessionInfo } from '../types'
+import type { GitState, Project, SessionInfo } from '../types'
 
 const FIELD = '\x1e'
 
@@ -16,6 +16,34 @@ for d in "$1"/*/; do
   printf '%s${FIELD}%s${FIELD}%s${FIELD}%s\\n' "$(basename "$d")" "$t" "$c" "$g"
 done
 `
+
+// One line per repository child of $1: name, branch (short commit when detached), 1 when the tree has changes.
+// Every repository is asked at once, since a large one's status can take a while.
+export const GIT_SCRIPT = `
+for d in "$1"/*/; do
+  d="\${d%/}"; [ -e "$d/.git" ] || continue
+  (
+    b=$(git -C "$d" symbolic-ref --short -q HEAD 2>/dev/null || git -C "$d" rev-parse --short HEAD 2>/dev/null)
+    x=0; [ -n "$(git -C "$d" status --porcelain 2>/dev/null | head -1)" ] && x=1
+    printf '%s${FIELD}%s${FIELD}%s\\n' "$(basename "$d")" "$b" "$x"
+  ) &
+done
+wait
+`
+
+export const parseGit = (stdout: string): Map<string, GitState> =>
+  new Map(
+    stdout.split('\n').flatMap(line => {
+      const [name = '', branch = '', dirty = '0'] = line.split(FIELD)
+      return line.includes(FIELD) && name !== '' && branch !== '' ? [[name, { branch, dirty: dirty === '1' }] as const] : []
+    }),
+  )
+
+export const withGit = (projects: readonly Project[], git: ReadonlyMap<string, GitState>): Project[] =>
+  projects.map(p => {
+    const state = git.get(p.name)
+    return state ? { ...p, git: state } : p
+  })
 
 // The newest $2 transcripts of $1: id, mtime, the last custom-title line, the last last-prompt line.
 export const SESSIONS_SCRIPT = `
@@ -91,6 +119,10 @@ export const timeAgo = (seconds: number, now: number): string => {
   if (s < 86400 * 30) return `${Math.floor(s / 86400)} gün`
   return `${Math.floor(s / (86400 * 30))} ay`
 }
+
+// A braille spinner, one frame per tick.
+export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
+export const spinnerFrame = (tick: number): string => SPINNER[((tick % SPINNER.length) + SPINNER.length) % SPINNER.length]!
 
 export const clip = (text: string, width: number): string =>
   text.length <= width ? text : `${text.slice(0, Math.max(0, width - 1))}…`

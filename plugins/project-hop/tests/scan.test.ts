@@ -8,7 +8,10 @@ import {
   paginate,
   parentOf,
   parseProjects,
+  parseGit,
   parseSessions,
+  spinnerFrame,
+  withGit,
 } from '../hooks/scan'
 
 const F = '\x1e'
@@ -20,6 +23,17 @@ test('folders sort by last activity, unused ones last by name', () => {
   expect(projects[0]?.path).toBe('/p/web')
   expect(looksLikeRoot(projects, false)).toBe(true)
   expect(looksLikeRoot(projects, true)).toBe(false)
+})
+
+test('repositories get their branch and a dirty mark', () => {
+  const projects = parseProjects('/p', [`mods${F}9${F}1${F}1`, `notes${F}0${F}0${F}0`].join('\n'))
+  const git = parseGit([`mods${F}main${F}1`, `broken${F}${F}0`, ''].join('\n'))
+  expect([...git.keys()]).toEqual(['mods'])
+  const merged = withGit(projects, git)
+  expect(merged[0]?.git).toEqual({ branch: 'main', dirty: true })
+  expect(merged[1]?.git).toBeUndefined()
+  expect(spinnerFrame(0)).toBe('⠋')
+  expect(spinnerFrame(10)).toBe('⠋')
 })
 
 test('a session is titled by its custom title, else its last prompt, else left out', () => {

@@ -4,13 +4,15 @@ A [Claude Code](https://claude.com/claude-code) mod for when you keep all your p
 
 ## What it does
 
-**Projects.** When Claude starts in a folder that looks like a folder of projects, a band above the input lists its child folders as `📁` rows, newest activity first, with how many sessions each one has.
+**Projects.** When Claude starts in a folder that looks like a folder of projects, a band above the input lists its child folders as `📁` rows, newest activity first, with how many sessions each one has. Repositories also show their branch, and `●` when they have uncommitted changes (`⎇ main ●`); that part fills in a moment later so a large repository never holds the list back.
 
 - Press ctrl+x tab to give the band the keyboard, then ↑ ↓ to walk the folders and Enter to open one. Arrowing past the last row turns to the next page, past the first row to the previous one.
 - Or type a project's name and press Enter; a name that matches several filters the list.
 - `▲` / `▼` (`k` / `j`) also page through long lists; `x` closes the band.
 
-**Sessions.** Opening a project shows its recent sessions by title or last prompt.
+**Sessions.** Opening a project shows its recent sessions by title or last prompt, with its branch in the header.
+
+While a folder or a project's sessions are being read, a spinner turns in the band.
 
 - ↑ ↓ and Enter continue a session, or type its number.
 - `n` starts a new session in that project (`/cd` + `/clear`).

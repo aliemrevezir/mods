@@ -1,8 +1,9 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { HopView, Project } from '../types'
 import {
+  GIT_SCRIPT,
   PROJECTS_SCRIPT,
   SESSIONS_SCRIPT,
   clip,
@@ -13,9 +14,12 @@ import {
   matchSession,
   parentOf,
   paginate,
+  parseGit,
   parseProjects,
   parseSessions,
+  spinnerFrame,
   timeAgo,
+  withGit,
 } from './scan'
 
 const HIDDEN: HopView = { kind: 'hidden' }
@@ -33,18 +37,53 @@ const scanProjects = async ($: EngineInterface, root: string): Promise<Project[]
   return parseProjects(root.replace(/\/+$/, ''), stdout)
 }
 
+// Scans still running, by what the band says about them; a spinner turns while any is.
+// The module's own: a reload starts with none, and the scans it starts again fill it.
+const jobs = new Map<string, string>()
+let tick = 0
+let spin: Timer | undefined
+
+const busy = async <T,>($: EngineInterface, job: string, label: string, work: () => Promise<T>): Promise<T> => {
+  jobs.set(job, label)
+  spin ??= $.clock.every(100, () => {
+    tick += 1
+    $.ui.invalidate('ui.render')
+  })
+  $.ui.invalidate('ui.render')
+  try {
+    return await work()
+  } finally {
+    jobs.delete(job)
+    if (jobs.size === 0) {
+      spin?.cancel()
+      spin = undefined
+    }
+    $.ui.invalidate('ui.render')
+  }
+}
+
+// The branch and dirty mark come after the list is up, so a large repository never holds the band back.
+const scanGit = ($: EngineInterface, root: string) =>
+  busy($, 'git', 'git', async () => {
+    const { stdout } = await $.process.run(['sh', '-c', GIT_SCRIPT, 'sh', root])
+    const git = parseGit(stdout)
+    await update($, view, (v): HopView => (v.kind === 'projects' && v.root === root ? { ...v, projects: withGit(v.projects, git) } : v))
+  })
+
 const showProjects = async ($: EngineInterface, root: string, projects?: Project[]) => {
-  const list = projects ?? (await scanProjects($, root))
+  const list = projects ?? (await busy($, 'scan', 'projeler taranıyor', () => scanProjects($, root)))
   await update($, view, (): HopView => ({ kind: 'projects', root, projects: list, filter: '', page: 0 }))
+  if (list.some(p => p.isRepo)) later($, () => scanGit($, root))
 }
 
 const openProject = async ($: EngineInterface, root: string, project: Project) => {
-  const { stdout } = await $.process.run([
-    'sh', '-c', SESSIONS_SCRIPT, 'sh', encodeProjectDir(project.path), String(SESSION_LIMIT * 2),
-  ])
+  const { stdout } = await busy($, 'scan', `${project.name} session'ları okunuyor`, () =>
+    $.process.run(['sh', '-c', SESSIONS_SCRIPT, 'sh', encodeProjectDir(project.path), String(SESSION_LIMIT * 2)]))
   const sessions = parseSessions(stdout).slice(0, SESSION_LIMIT)
   await update($, view, (): HopView => ({ kind: 'sessions', root, project, sessions, page: 0 }))
 }
+
+const gitLabel = (git: Project['git']): string => (git ? `⎇ ${clip(git.branch, 14)}${git.dirty ? ' ●' : ''}` : '')
 
 // The band only scrolls by wheel in the fullscreen layout, so the lists page instead.
 const turnPage = ($: EngineInterface, by: number) =>
@@ -155,9 +194,13 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, view)
-    if (current.kind === 'hidden' || e.props.hasSurvey || e.props.isWorking) return next(e)
-
+    if (e.props.hasSurvey || e.props.isWorking) return next(e)
+    const scanning = jobs.get('scan')
     const { Box, Button, Text } = $.ui.resolve(e)
+    const spinner = (label: string | undefined) =>
+      label === undefined ? null : <Text key="spinner" color="cyan">{spinnerFrame(tick)} {label}…  </Text>
+    if (current.kind === 'hidden') return scanning === undefined ? next(e) : <Box>{spinner(scanning)}</Box>
+
     const now = await $.clock.now()
     const width = e.props.bodyColumns
     const close = <Button key="close" label="× kapat" hotkey="x" onPress={() => update($, view, () => HIDDEN)} />
@@ -179,7 +222,8 @@ export const register: Register = on => {
     if (current.kind === 'projects') {
       const shown = filterProjects(current.projects, current.filter)
       const page = paginate(shown, pageRows, current.page)
-      const nameWidth = Math.max(12, Math.min(40, width - 28))
+      const nameWidth = Math.max(12, Math.min(32, width - 48))
+      const gitWidth = shown.some(p => p.git) ? 20 : 0
 
       return (
         <Box flexDirection="column">
@@ -189,6 +233,7 @@ export const register: Register = on => {
               {'  '}
               {shown.length}/{current.projects.length} proje{current.filter ? ` · "${current.filter}"` : ''}{'  '}
             </Text>
+            {spinner(scanning ?? (jobs.has('git') ? 'git' : undefined))}
             {pager(page.at, page.pages)}
             {current.filter ? (
               <Button key="unfilter" label="süzgeci kaldır" onPress={() => update($, view, (): HopView => ({ ...current, filter: '', page: 0 }))} />
@@ -202,7 +247,7 @@ export const register: Register = on => {
             return (
               <Button
                 key={`project-${index}`}
-                label={`📁 ${clip(project.name, nameWidth).padEnd(nameWidth)}  ${timeAgo(project.lastActive, now)}${sessions}`}
+                label={`📁 ${clip(project.name, nameWidth).padEnd(nameWidth)}  ${gitLabel(project.git).padEnd(gitWidth)}${timeAgo(project.lastActive, now)}${sessions}`}
                 plain
                 dimColor={project.sessions === 0}
                 autoFocus={r === 0 ? true : undefined}
@@ -221,7 +266,9 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Box>
           <Text bold>▸ {current.project.name}</Text>
+          {current.project.git ? <Text color="green">  {gitLabel(current.project.git)}</Text> : null}
           <Text dimColor>  {current.project.sessions} session  </Text>
+          {spinner(scanning)}
           {pager(page.at, page.pages)}
           <Button key="new" label="n yeni" hotkey="n" variant="primary" onPress={() => hop($, current.project)} />
           <Text> </Text>

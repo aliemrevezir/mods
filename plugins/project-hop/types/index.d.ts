@@ -6,7 +6,12 @@ export type Project = {
   lastActive: number
   sessions: number
   isRepo: boolean
+  // Filled in by a second, slower scan of the repositories; absent until it lands.
+  git?: GitState
 }
+
+// A repository's checked-out branch (or short commit when detached) and whether its tree has changes.
+export type GitState = { branch: string; dirty: boolean }
 
 // One saved conversation of a project, newest first in a list.
 export type SessionInfo = {
