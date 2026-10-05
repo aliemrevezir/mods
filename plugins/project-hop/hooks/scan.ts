@@ -19,12 +19,16 @@ done
 
 // One line per repository child of $1: name, branch (short commit when detached), 1 when the tree has changes.
 // Every repository is asked at once, since a large one's status can take a while.
+// A cloned repository's own config could name a command for status to run (core.fsmonitor), so
+// that is switched off from the command line, which outranks it; --no-optional-locks keeps
+// status from rewriting the index under a git the person is running there.
 export const GIT_SCRIPT = `
 for d in "$1"/*/; do
   d="\${d%/}"; [ -e "$d/.git" ] || continue
   (
-    b=$(git -C "$d" symbolic-ref --short -q HEAD 2>/dev/null || git -C "$d" rev-parse --short HEAD 2>/dev/null)
-    x=0; [ -n "$(git -C "$d" status --porcelain 2>/dev/null | head -1)" ] && x=1
+    g() { git -C "$d" -c core.fsmonitor=false -c core.untrackedCache=false --no-optional-locks "$@" 2>/dev/null; }
+    b=$(g symbolic-ref --short -q HEAD || g rev-parse --short HEAD)
+    x=0; [ -n "$(g status --porcelain --ignore-submodules | head -1)" ] && x=1
     printf '%s${FIELD}%s${FIELD}%s\\n' "$(basename "$d")" "$b" "$x"
   ) &
 done
