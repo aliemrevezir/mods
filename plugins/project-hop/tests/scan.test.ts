@@ -32,14 +32,14 @@ test('a session is titled by its custom title, else its last prompt, else left o
   ])
 })
 
-test('typed lines pick by number or a single word, sentences go to the model', () => {
+test('typed lines pick by a single word, sentences go to the model', () => {
   const all = parseProjects('/p', [`isler-poms${F}3${F}1${F}1`, `isler-stok${F}2${F}1${F}1`, `mods${F}1${F}1${F}1`].join('\n'))
-  expect(matchProject('2', all, all)).toEqual({ kind: 'project', project: all[1]! })
-  expect(matchProject('mods', all, all)).toEqual({ kind: 'project', project: all[2]! })
-  expect(matchProject('stok', all, all)).toEqual({ kind: 'project', project: all[1]! })
-  expect(matchProject('isler', all, all)).toEqual({ kind: 'filter', filter: 'isler' })
-  expect(matchProject('hangi proje en eski', all, all)).toEqual({ kind: 'none' })
-  expect(matchProject('9', all, all)).toEqual({ kind: 'none' })
+  expect(matchProject('2', all)).toEqual({ kind: 'none' })
+  expect(matchProject('mods', all)).toEqual({ kind: 'project', project: all[2]! })
+  expect(matchProject('stok', all)).toEqual({ kind: 'project', project: all[1]! })
+  expect(matchProject('isler', all)).toEqual({ kind: 'filter', filter: 'isler' })
+  expect(matchProject('hangi proje en eski', all)).toEqual({ kind: 'none' })
+  expect(matchProject('9', all)).toEqual({ kind: 'none' })
 })
 
 test('session picks', () => {

@@ -22,7 +22,11 @@ const HIDDEN: HopView = { kind: 'hidden' }
 const view = atom({ plugin: 'project-hop', key: 'view' } as const, HIDDEN)
 
 const SESSION_LIMIT = 40
-const CELL = 30
+// Focus stops drawn above and below a page: the arrows reaching one turn the page.
+const EDGE_UP = 'page-up'
+const EDGE_DOWN = 'page-down'
+// Rows per page as last drawn, so a page turned by the arrows knows where to land.
+let pageSize = 8
 
 const scanProjects = async ($: EngineInterface, root: string): Promise<Project[]> => {
   const { stdout } = await $.process.run(['sh', '-c', PROJECTS_SCRIPT, 'sh', root])
@@ -103,8 +107,7 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     const current = await read($, view)
     if (current.kind === 'projects') {
-      const shown = filterProjects(current.projects, current.filter)
-      const pick = matchProject(e.text, shown, current.projects)
+      const pick = matchProject(e.text, current.projects)
       if (pick.kind === 'project') {
         later($, () => openProject($, current.root, pick.project))
         return { drop: `project-hop: ${pick.project.name}` }
@@ -132,6 +135,24 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // Arrowing past a page's first or last row lands on an edge stop: turn the page and
+  // put the ring on the row that comes next, so the arrows walk the whole list.
+  on('ui.focus', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.origin.kind !== 'person' || (e.element !== EDGE_UP && e.element !== EDGE_DOWN)) return next(e)
+    const current = await read($, view)
+    if (current.kind === 'hidden') return next(e)
+    const by = e.element === EDGE_DOWN ? 1 : -1
+    const total = current.kind === 'projects' ? filterProjects(current.projects, current.filter).length : current.sessions.length
+    const at = paginate(Array.from({ length: total }), pageSize, current.page).at + by
+    const index = Math.min(total - 1, by > 0 ? at * pageSize : at * pageSize + pageSize - 1)
+    const key = `${current.kind === 'projects' ? 'project' : 'session'}-${index}`
+    await update($, view, (v): HopView => (v.kind === 'hidden' ? v : { ...v, page: at }))
+    later($, async () => {
+      await $.ui.focus({ requestId: e.requestId, key })
+    })
+    return {}
+  })
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, view)
     if (current.kind === 'hidden' || e.props.hasSurvey || e.props.isWorking) return next(e)
@@ -140,8 +161,11 @@ export const register: Register = on => {
     const now = await $.clock.now()
     const width = e.props.bodyColumns
     const close = <Button key="close" label="× kapat" hotkey="x" onPress={() => update($, view, () => HIDDEN)} />
-    // Header and footer take a row each; the rest is the page.
-    const pageRows = Math.max(3, e.props.maxRows - 2)
+    // Header, footer and the two edge stops take a row each; the rest is the page.
+    const pageRows = Math.max(3, e.props.maxRows - 4)
+    pageSize = pageRows
+    const edge = (key: string, label: string, by: number, shown: boolean) =>
+      shown ? <Button key={key} label={label} plain dimColor onPress={() => turnPage($, by)} /> : null
     const pager = (at: number, pages: number) =>
       pages > 1 ? (
         <Box key="pager">
@@ -154,10 +178,8 @@ export const register: Register = on => {
 
     if (current.kind === 'projects') {
       const shown = filterProjects(current.projects, current.filter)
-      const columns = Math.max(1, Math.floor(width / CELL))
-      const grid = Array.from({ length: Math.ceil(shown.length / columns) }, (_, r) =>
-        shown.slice(r * columns, (r + 1) * columns))
-      const page = paginate(grid, pageRows, current.page)
+      const page = paginate(shown, pageRows, current.page)
+      const nameWidth = Math.max(12, Math.min(40, width - 28))
 
       return (
         <Box flexDirection="column">
@@ -173,25 +195,23 @@ export const register: Register = on => {
             ) : null}
             {close}
           </Box>
-          {page.rows.map((row, r) => (
-            <Box key={`row-${page.start + r}`}>
-              {row.map((project, c) => {
-                const index = (page.start + r) * columns + c
-                return (
-                  <Box key={`cell-${index}`} width={CELL}>
-                    <Button
-                      key={`project-${index}`}
-                      label={`${String(index + 1).padStart(2)} ${clip(project.name, CELL - 12)} ${timeAgo(project.lastActive, now)}`}
-                      plain
-                      dimColor={project.sessions === 0}
-                      onPress={() => openProject($, current.root, project)}
-                    />
-                  </Box>
-                )
-              })}
-            </Box>
-          ))}
-          <Text dimColor>numara ya da ad yaz + Enter · ▲▼ sayfa · ctrl+x tab ile ok tuşları</Text>
+          {edge(EDGE_UP, '  ▲ önceki sayfa', -1, page.at > 0)}
+          {page.rows.map((project, r) => {
+            const index = page.start + r
+            const sessions = project.sessions > 0 ? ` · ${project.sessions} session` : ''
+            return (
+              <Button
+                key={`project-${index}`}
+                label={`📁 ${clip(project.name, nameWidth).padEnd(nameWidth)}  ${timeAgo(project.lastActive, now)}${sessions}`}
+                plain
+                dimColor={project.sessions === 0}
+                autoFocus={r === 0 ? true : undefined}
+                onPress={() => openProject($, current.root, project)}
+              />
+            )
+          })}
+          {edge(EDGE_DOWN, '  ▼ sonraki sayfa', 1, page.at < page.pages - 1)}
+          <Text dimColor>ctrl+x tab → ↑↓ gez, Enter aç · ya da adını yaz + Enter</Text>
         </Box>
       )
     }
@@ -210,6 +230,7 @@ export const register: Register = on => {
           {close}
         </Box>
         {current.sessions.length === 0 ? <Text dimColor>  Bu projede kayıtlı session yok, n ile yenisini aç.</Text> : null}
+        {edge(EDGE_UP, '  ▲ önceki sayfa', -1, page.at > 0)}
         {page.rows.map((session, r) => {
           const i = page.start + r
           return (
@@ -217,11 +238,13 @@ export const register: Register = on => {
               key={`session-${i}`}
               label={`${String(i + 1).padStart(2)}  ${timeAgo(session.mtime, now).padEnd(7)} ${clip(session.title, Math.max(20, width - 16))}`}
               plain
+              autoFocus={r === 0 ? true : undefined}
               onPress={() => hop($, current.project, session.id)}
             />
           )
         })}
-        <Text dimColor>numara = devam · c = en sonuncusu · n = yeni · b = geri · ▲▼ sayfa</Text>
+        {edge(EDGE_DOWN, '  ▼ sonraki sayfa', 1, page.at < page.pages - 1)}
+        <Text dimColor>↑↓ gez, Enter devam · numara = devam · c = en sonuncusu · n = yeni · b = geri</Text>
       </Box>
     )
   })

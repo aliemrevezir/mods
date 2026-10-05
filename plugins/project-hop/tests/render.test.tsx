@@ -19,15 +19,19 @@ test('/projects draws the folders, pressing one opens it, the band lists its ses
   const ui = await $.ui.mount({ plugin: 'project-hop', surface: 'terminal', ...BAND } as never)
   expect(await ui.find({ key: 'project-0' })).toBeDefined()
   expect(await ui.find({ key: 'project-1' })).toBeDefined()
+  expect((await ui.find({ key: 'project-0' }))?.props.label).toMatch(/^📁 isler-poms /)
+
 
   await ui.press({ key: 'project-0' })
   expect(await ui.find({ key: 'new' })).toBeDefined()
   expect(await ui.find({ key: 'session-0' })).toBeDefined()
   expect(await ui.find({ key: 'session-8' })).toBeUndefined()
 
-  await ui.press({ key: 'next' })
-  expect(await ui.find({ key: 'session-8' })).toBeDefined()
+  expect(await ui.find({ key: 'page-up' })).toBeUndefined()
+  await ui.press({ key: 'page-down' })
+  expect(await ui.find({ key: 'session-6' })).toBeDefined()
   expect(await ui.find({ key: 'session-0' })).toBeUndefined()
+  expect(await ui.find({ key: 'page-up' })).toBeDefined()
 
   await ui.press({ key: 'close' })
   expect(await ui.find({ key: 'new' })).toBeUndefined()

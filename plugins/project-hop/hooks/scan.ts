@@ -101,12 +101,9 @@ export type TypedPick =
   | { kind: 'filter'; filter: string }
   | { kind: 'none' }
 
-export const matchProject = (text: string, shown: readonly Project[], all: readonly Project[]): TypedPick => {
+// The folders carry no numbers, so only a name picks one.
+export const matchProject = (text: string, all: readonly Project[]): TypedPick => {
   const typed = text.trim()
-  if (/^\d+$/.test(typed)) {
-    const project = shown[Number(typed) - 1]
-    return project ? { kind: 'project', project } : { kind: 'none' }
-  }
   // A sentence is a prompt; only a single word is read as a project name.
   if (typed === '' || /\s/.test(typed)) return { kind: 'none' }
   const needle = typed.toLowerCase()
