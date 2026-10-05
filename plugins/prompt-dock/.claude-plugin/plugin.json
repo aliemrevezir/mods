@@ -1,7 +1,7 @@
 {
   "name": "prompt-dock",
   "version": "1.0.0",
-  "description": "A rail of your prompts above the input (hover to preview, click to jump), a dock beside the transcript, and quote-reply from any selected text",
+  "description": "A rail of your prompts above the input (hover to preview, click to jump), a dock beside the transcript, and quote-reply from any selected text. Built on top of oikon48/prompt-rail",
   "author": {
     "name": "Ali Emre Vezir",
     "url": "https://github.com/aliemrevezir"
