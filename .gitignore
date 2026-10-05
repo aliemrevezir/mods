@@ -1,3 +1,4 @@
 .DS_Store
 node_modules/
 plugins/prompt-dock/.claude-plugin/types/
+plugins/project-hop/.claude-plugin/types/

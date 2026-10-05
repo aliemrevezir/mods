@@ -1,0 +1,20 @@
+{
+  "name": "project-hop",
+  "version": "0.1.0",
+  "description": "Start Claude in a folder of projects, browse them above the prompt, then open a new session or continue a recent one without leaving the terminal",
+  "author": {
+    "name": "Ali Emre Vezir",
+    "url": "https://github.com/aliemrevezir"
+  },
+  "homepage": "https://github.com/aliemrevezir/mods/tree/main/plugins/project-hop",
+  "repository": "https://github.com/aliemrevezir/mods",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "projects",
+    "sessions",
+    "navigation",
+    "resume"
+  ],
+  "types": "./types/index.d.ts"
+}

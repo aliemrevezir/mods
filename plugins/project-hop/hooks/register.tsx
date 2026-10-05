@@ -1,0 +1,228 @@
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
+
+import type { HopView, Project } from '../types'
+import {
+  PROJECTS_SCRIPT,
+  SESSIONS_SCRIPT,
+  clip,
+  encodeProjectDir,
+  filterProjects,
+  looksLikeRoot,
+  matchProject,
+  matchSession,
+  parentOf,
+  paginate,
+  parseProjects,
+  parseSessions,
+  timeAgo,
+} from './scan'
+
+const HIDDEN: HopView = { kind: 'hidden' }
+const view = atom({ plugin: 'project-hop', key: 'view' } as const, HIDDEN)
+
+const SESSION_LIMIT = 40
+const CELL = 30
+
+const scanProjects = async ($: EngineInterface, root: string): Promise<Project[]> => {
+  const { stdout } = await $.process.run(['sh', '-c', PROJECTS_SCRIPT, 'sh', root])
+  return parseProjects(root.replace(/\/+$/, ''), stdout)
+}
+
+const showProjects = async ($: EngineInterface, root: string, projects?: Project[]) => {
+  const list = projects ?? (await scanProjects($, root))
+  await update($, view, (): HopView => ({ kind: 'projects', root, projects: list, filter: '', page: 0 }))
+}
+
+const openProject = async ($: EngineInterface, root: string, project: Project) => {
+  const { stdout } = await $.process.run([
+    'sh', '-c', SESSIONS_SCRIPT, 'sh', encodeProjectDir(project.path), String(SESSION_LIMIT * 2),
+  ])
+  const sessions = parseSessions(stdout).slice(0, SESSION_LIMIT)
+  await update($, view, (): HopView => ({ kind: 'sessions', root, project, sessions, page: 0 }))
+}
+
+// The band only scrolls by wheel in the fullscreen layout, so the lists page instead.
+const turnPage = ($: EngineInterface, by: number) =>
+  update($, view, (v): HopView => (v.kind === 'hidden' ? v : { ...v, page: (v.page || 0) + by }))
+
+const quote = (path: string) => (/\s/.test(path) ? `"${path}"` : path)
+
+// Moves this session into the project, then starts fresh there or picks a saved conversation back up.
+const hop = async ($: EngineInterface, project: Project, resumeId?: string) => {
+  await update($, view, () => HIDDEN)
+  $.ui.status(undefined)
+  await $.command.run({ command: 'cd', args: quote(project.path) })
+  if (resumeId !== undefined) {
+    await $.command.run({ command: 'resume', args: resumeId })
+  } else if ((await $.session.turns()) > 0) {
+    await $.command.run({ command: 'clear' })
+  }
+}
+
+// prompt.submit holds the turn, so the commands run once it has let go.
+const later = ($: EngineInterface, fn: () => Promise<void>) => {
+  $.clock.after(0, () => {
+    fn().catch(error => $.ui.toast(`project-hop: ${String(error)}`))
+  })
+}
+
+export const register: Register = on => {
+  on('session.start', async ($, e, next) => {
+    const result = await next(e)
+    await $.command.register({
+      name: 'projects',
+      description: 'Browse project folders and open a new or recent session',
+      argumentHint: '[folder]',
+    })
+    const shown = await read($, view)
+    if (shown.kind !== 'hidden') {
+      // A reload keeps the band's state but not how it was gathered: scan again.
+      later($, () => (shown.kind === 'sessions' ? openProject($, shown.root, shown.project) : showProjects($, shown.root)))
+    } else if (e.isInteractive) {
+      later($, async () => {
+        const projects = await scanProjects($, e.cwd)
+        if (looksLikeRoot(projects, (await $.session.repo()) !== null)) await showProjects($, e.cwd, projects)
+      })
+    }
+    return result
+  })
+
+  on('command.run', { command: 'projects' }, async ($, e) => {
+    let root = e.args.trim()
+    if (root === '') {
+      const cwd = await $.session.cwd()
+      const here = await scanProjects($, cwd)
+      root = looksLikeRoot(here, (await $.session.repo()) !== null) ? cwd : parentOf(await $.session.root())
+    }
+    await showProjects($, root)
+    return { text: root }
+  })
+
+  // A number or a project's name typed while the band shows picks instead of reaching the model.
+  on('prompt.submit', async ($, e, next) => {
+    const current = await read($, view)
+    if (current.kind === 'projects') {
+      const shown = filterProjects(current.projects, current.filter)
+      const pick = matchProject(e.text, shown, current.projects)
+      if (pick.kind === 'project') {
+        later($, () => openProject($, current.root, pick.project))
+        return { drop: `project-hop: ${pick.project.name}` }
+      }
+      if (pick.kind === 'filter') {
+        await update($, view, (): HopView => ({ ...current, filter: pick.filter, page: 0 }))
+        return { drop: `project-hop: "${pick.filter}" ile süzüldü` }
+      }
+    }
+    if (current.kind === 'sessions') {
+      const pick = matchSession(e.text, current.sessions)
+      if (pick.kind === 'back') {
+        later($, () => showProjects($, current.root, undefined))
+        return { drop: 'project-hop: projeler' }
+      }
+      if (pick.kind === 'new') {
+        later($, () => hop($, current.project))
+        return { drop: `project-hop: ${current.project.name} · yeni session` }
+      }
+      if (pick.kind === 'resume') {
+        later($, () => hop($, current.project, pick.id))
+        return { drop: `project-hop: ${current.project.name} · devam` }
+      }
+    }
+    return next(e)
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const current = await read($, view)
+    if (current.kind === 'hidden' || e.props.hasSurvey || e.props.isWorking) return next(e)
+
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const now = await $.clock.now()
+    const width = e.props.bodyColumns
+    const close = <Button key="close" label="× kapat" hotkey="x" onPress={() => update($, view, () => HIDDEN)} />
+    // Header and footer take a row each; the rest is the page.
+    const pageRows = Math.max(3, e.props.maxRows - 2)
+    const pager = (at: number, pages: number) =>
+      pages > 1 ? (
+        <Box key="pager">
+          <Button key="prev" label="▲" hotkey="k" onPress={() => turnPage($, -1)} />
+          <Text dimColor> {at + 1}/{pages} </Text>
+          <Button key="next" label="▼" hotkey="j" onPress={() => turnPage($, 1)} />
+          <Text>  </Text>
+        </Box>
+      ) : null
+
+    if (current.kind === 'projects') {
+      const shown = filterProjects(current.projects, current.filter)
+      const columns = Math.max(1, Math.floor(width / CELL))
+      const grid = Array.from({ length: Math.ceil(shown.length / columns) }, (_, r) =>
+        shown.slice(r * columns, (r + 1) * columns))
+      const page = paginate(grid, pageRows, current.page)
+
+      return (
+        <Box flexDirection="column">
+          <Box>
+            <Text bold>▸ {clip(current.root, Math.max(10, width - 50))}</Text>
+            <Text dimColor>
+              {'  '}
+              {shown.length}/{current.projects.length} proje{current.filter ? ` · "${current.filter}"` : ''}{'  '}
+            </Text>
+            {pager(page.at, page.pages)}
+            {current.filter ? (
+              <Button key="unfilter" label="süzgeci kaldır" onPress={() => update($, view, (): HopView => ({ ...current, filter: '', page: 0 }))} />
+            ) : null}
+            {close}
+          </Box>
+          {page.rows.map((row, r) => (
+            <Box key={`row-${page.start + r}`}>
+              {row.map((project, c) => {
+                const index = (page.start + r) * columns + c
+                return (
+                  <Box key={`cell-${index}`} width={CELL}>
+                    <Button
+                      key={`project-${index}`}
+                      label={`${String(index + 1).padStart(2)} ${clip(project.name, CELL - 12)} ${timeAgo(project.lastActive, now)}`}
+                      plain
+                      dimColor={project.sessions === 0}
+                      onPress={() => openProject($, current.root, project)}
+                    />
+                  </Box>
+                )
+              })}
+            </Box>
+          ))}
+          <Text dimColor>numara ya da ad yaz + Enter · ▲▼ sayfa · ctrl+x tab ile ok tuşları</Text>
+        </Box>
+      )
+    }
+
+    const page = paginate(current.sessions, pageRows, current.page)
+    return (
+      <Box flexDirection="column">
+        <Box>
+          <Text bold>▸ {current.project.name}</Text>
+          <Text dimColor>  {current.project.sessions} session  </Text>
+          {pager(page.at, page.pages)}
+          <Button key="new" label="n yeni" hotkey="n" variant="primary" onPress={() => hop($, current.project)} />
+          <Text> </Text>
+          <Button key="back" label="b geri" hotkey="b" onPress={() => showProjects($, current.root, undefined)} />
+          <Text> </Text>
+          {close}
+        </Box>
+        {current.sessions.length === 0 ? <Text dimColor>  Bu projede kayıtlı session yok, n ile yenisini aç.</Text> : null}
+        {page.rows.map((session, r) => {
+          const i = page.start + r
+          return (
+            <Button
+              key={`session-${i}`}
+              label={`${String(i + 1).padStart(2)}  ${timeAgo(session.mtime, now).padEnd(7)} ${clip(session.title, Math.max(20, width - 16))}`}
+              plain
+              onPress={() => hop($, current.project, session.id)}
+            />
+          )
+        })}
+        <Text dimColor>numara = devam · c = en sonuncusu · n = yeni · b = geri · ▲▼ sayfa</Text>
+      </Box>
+    )
+  })
+}
