@@ -2,9 +2,13 @@
 
 A [Claude Code](https://claude.com/claude-code) mod for when you keep all your projects under one folder. Start Claude in that folder, pick a project above the prompt, then open a new session there or continue a recent one, without leaving the terminal.
 
+![project-hop: browsing a folder of projects, walking them with the arrows, opening one and resuming a session](docs/demo.gif)
+
+<sub>The projects in the demo are made up; `docs/make_demo.py` draws it.</sub>
+
 ## What it does
 
-**Projects.** When Claude starts in a folder that looks like a folder of projects, a band above the input lists its child folders as `📁` rows, newest activity first, with how many sessions each one has. Repositories also show their branch, and `●` when they have uncommitted changes (`⎇ main ●`), or `?` for a repository whose own config (not your global one) defines filters, where asking git for status could run them; that part fills in a moment later so a large repository never holds the list back.
+**Projects.** When Claude starts in a folder that looks like a folder of projects, a band above the input lists its child folders as `📁` rows, newest activity first, with how many sessions each one has. Repositories also show their branch, and `●` when they have uncommitted changes (`⎇ main ●`), or `?` for a repository whose own config (not your global one) defines filters or cannot be read, where asking git for status could run them; that part fills in a moment later so a large repository never holds the list back.
 
 - Press ctrl+x tab to give the band the keyboard, then ↑ ↓ to walk the folders and Enter to open one. Arrowing past the last row turns to the next page, past the first row to the previous one.
 - Or type a project's name and press Enter; a name that matches several filters the list.

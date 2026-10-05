@@ -31,7 +31,9 @@ for d in "$1"/*/; do
     g() { git -C "$d" -c core.fsmonitor=false -c core.untrackedCache=false --no-optional-locks "$@" 2>/dev/null; }
     b=$(g symbolic-ref --short -q HEAD || g rev-parse --short HEAD)
     x=0
-    if g config --show-scope --includes --name-only --get-regexp '^filter\\.|^diff\\.external$' | grep -qvE '^(system|global)[[:space:]]'; then x=2
+    # Exit 1 is "none found"; anything above (an old git, a config git cannot read) fails closed.
+    f=$(g config --show-scope --includes --name-only --get-regexp '^filter\\.|^diff\\.external$'); r=$?
+    if [ "$r" -gt 1 ] || printf '%s\\n' "$f" | grep -qvE '^(system|global)[[:space:]]|^$'; then x=2
     elif [ -n "$(g status --porcelain --ignore-submodules | head -1)" ]; then x=1; fi
     printf '%s${FIELD}%s${FIELD}%s\\n' "$(basename "$d")" "$b" "$x"
   ) &

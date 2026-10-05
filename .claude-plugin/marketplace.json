@@ -22,7 +22,7 @@
       "name": "project-hop",
       "source": "./plugins/project-hop",
       "description": "Start Claude in a folder of projects, browse them above the prompt, then open a new session or continue a recent one without leaving the terminal",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "author": {
         "name": "Ali Emre Vezir"
       },
