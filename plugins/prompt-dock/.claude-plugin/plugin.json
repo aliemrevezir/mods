@@ -1,0 +1,11 @@
+{
+  "name": "prompt-dock",
+  "version": "1.0.0",
+  "description": "A rail of your prompts above the input (hover to preview, click to jump), a dock beside the transcript, and quote-reply from any selected text",
+  "author": { "name": "Ali Emre Vezir", "url": "https://github.com/aliemrevezir" },
+  "homepage": "https://github.com/aliemrevezir/prompt-dock",
+  "repository": "https://github.com/aliemrevezir/prompt-dock",
+  "license": "MIT",
+  "keywords": ["mod", "prompts", "navigation", "reply", "quote"],
+  "types": "./types/index.d.ts"
+}
