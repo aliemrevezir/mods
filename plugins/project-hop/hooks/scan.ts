@@ -20,8 +20,9 @@ done
 // One line per repository child of $1: name, branch (short commit when detached), 1 when the tree has changes.
 // Every repository is asked at once, since a large one's status can take a while.
 // A cloned repository's own config can name commands status would run: core.fsmonitor is switched
-// off from the command line, which outranks it; a repository whose config (or a file it includes)
-// defines a filter or an external diff is not asked for status at all, and reports 2.
+// off from the command line, which outranks it; a repository where a filter or an external diff
+// comes from anywhere but the person's system or global config (its .git/config, config.worktree,
+// a file either includes) is not asked for status at all, and reports 2.
 // Reading config runs nothing. --no-optional-locks keeps status from rewriting the index.
 export const GIT_SCRIPT = `
 for d in "$1"/*/; do
@@ -30,7 +31,7 @@ for d in "$1"/*/; do
     g() { git -C "$d" -c core.fsmonitor=false -c core.untrackedCache=false --no-optional-locks "$@" 2>/dev/null; }
     b=$(g symbolic-ref --short -q HEAD || g rev-parse --short HEAD)
     x=0
-    if g config --local --includes --name-only --get-regexp '^filter\\.|^diff\\.external$' >/dev/null; then x=2
+    if g config --show-scope --includes --name-only --get-regexp '^filter\\.|^diff\\.external$' | grep -qvE '^(system|global)[[:space:]]'; then x=2
     elif [ -n "$(g status --porcelain --ignore-submodules | head -1)" ]; then x=1; fi
     printf '%s${FIELD}%s${FIELD}%s\\n' "$(basename "$d")" "$b" "$x"
   ) &
