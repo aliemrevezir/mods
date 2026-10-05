@@ -12,7 +12,7 @@ then install any mod from it:
 
 | Mod | What it does | Install |
 | --- | --- | --- |
-| [prompt-dock](plugins/prompt-dock) | A rail of your prompts above the input (hover to preview, click to jump), a dock beside the transcript, and quote-reply from any selected text. Inspired by [@oikon48](https://x.com/oikon48)'s prompt-rail. | `/plugin install prompt-dock@aliemrevezir-mods` |
+| [prompt-dock](plugins/prompt-dock) | A rail of your prompts above the input (hover to preview, click to jump), a dock beside the transcript, and quote-reply from any selected text. Inspired by [@oikon48](https://github.com/oikon48)'s [prompt-rail](https://github.com/oikon48/prompt-rail). | `/plugin install prompt-dock@aliemrevezir-mods` |
 
 Each mod lives in `plugins/<name>` with its own README and tests.
 

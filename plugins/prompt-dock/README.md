@@ -2,6 +2,8 @@
 
 A [Claude Code](https://claude.com/claude-code) mod that keeps every prompt you sent one click away, and lets you reply to any piece of the conversation by quoting it.
 
+Inspired by [oikon48/prompt-rail](https://github.com/oikon48/prompt-rail).
+
 ## What it does
 
 **Rail (default).** A thin rail sits above the input, one tick per prompt. The thick tick is the prompt you are looking at in the transcript.
@@ -70,7 +72,7 @@ To load it in every session without the flag, set `CLAUDE_CODE_PLUGIN_DIRS` in t
 
 ## Credits
 
-- The rail and dock design comes from **Oikon** ([@oikon48](https://x.com/oikon48)) and their "prompt-rail" mod. prompt-dock is an independent reimplementation of that idea, with quote-reply added on top.
+- The rail and dock design comes from **Oikon** ([GitHub @oikon48](https://github.com/oikon48), [X @oikon48](https://x.com/oikon48)) and their mod **[prompt-rail](https://github.com/oikon48/prompt-rail)**. prompt-dock is an independent reimplementation of that idea, written from the demo without copying its code, with quote-reply added on top. If you only want the rail, go use the original: `/plugin marketplace add oikon48/prompt-rail`.
 - Found through the HQ NET video [CLAUDE'UN MODS ÖZELLİĞİ MUHTEŞEM](https://youtu.be/nCzV2Qbg8BI?t=248), which tours community mods.
 - The community thread of mods started under the [ClaudeDevs announcement](https://x.com/ClaudeDevs/status/2105721434807083061).
 
