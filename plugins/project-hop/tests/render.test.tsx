@@ -5,7 +5,7 @@ const BAND = { component: 'AbovePrompt', props: { bodyColumns: 100, hasSurvey: f
 const run = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
 
 test('/projects draws the folders, pressing one opens it, the band lists its sessions', async ($, on) => {
-  const title = JSON.stringify({ type: 'custom-title', customTitle: 'Barkod yapısı' })
+  const title = JSON.stringify({ type: 'custom-title', customTitle: 'Barcode layout' })
   on('process.run', (_$, e) => {
     const argv = (e as { argv: string[] }).argv
     return (argv.length > 5

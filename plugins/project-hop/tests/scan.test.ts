@@ -38,12 +38,12 @@ test('repositories get their branch and a dirty mark', () => {
 })
 
 test('a session is titled by its custom title, else its last prompt, else left out', () => {
-  const titled = JSON.stringify({ type: 'custom-title', customTitle: 'Barkod yapısı' })
-  const prompt = JSON.stringify({ type: 'last-prompt', lastPrompt: 'sayı\nnereden geliyor' })
+  const titled = JSON.stringify({ type: 'custom-title', customTitle: 'Barcode layout' })
+  const prompt = JSON.stringify({ type: 'last-prompt', lastPrompt: 'where does\nthis number come from' })
   const out = [`a${F}10${F}${titled}${F}${prompt}`, `b${F}9${F}${F}${prompt}`, `c${F}8${F}${F}`].join('\n')
   expect(parseSessions(out)).toEqual([
-    { id: 'a', mtime: 10, title: 'Barkod yapısı' },
-    { id: 'b', mtime: 9, title: 'sayı nereden geliyor' },
+    { id: 'a', mtime: 10, title: 'Barcode layout' },
+    { id: 'b', mtime: 9, title: 'where does this number come from' },
   ])
 })
 
@@ -53,7 +53,7 @@ test('typed lines pick by a single word, sentences go to the model', () => {
   expect(matchProject('mods', all)).toEqual({ kind: 'project', project: all[2]! })
   expect(matchProject('stok', all)).toEqual({ kind: 'project', project: all[1]! })
   expect(matchProject('isler', all)).toEqual({ kind: 'filter', filter: 'isler' })
-  expect(matchProject('hangi proje en eski', all)).toEqual({ kind: 'none' })
+  expect(matchProject('which project is oldest', all)).toEqual({ kind: 'none' })
   expect(matchProject('9', all)).toEqual({ kind: 'none' })
 })
 

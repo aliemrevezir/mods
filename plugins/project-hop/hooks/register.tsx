@@ -71,17 +71,19 @@ const scanGit = ($: EngineInterface, root: string) =>
   })
 
 const showProjects = async ($: EngineInterface, root: string, projects?: Project[]) => {
-  const list = projects ?? (await busy($, 'scan', 'projeler taranıyor', () => scanProjects($, root)))
+  const list = projects ?? (await busy($, 'scan', 'scanning projects', () => scanProjects($, root)))
   await update($, view, (): HopView => ({ kind: 'projects', root, projects: list, filter: '', page: 0 }))
   if (list.some(p => p.isRepo)) later($, () => scanGit($, root))
 }
 
 const openProject = async ($: EngineInterface, root: string, project: Project) => {
-  const { stdout } = await busy($, 'scan', `${project.name} session'ları okunuyor`, () =>
+  const { stdout } = await busy($, 'scan', `reading ${project.name} sessions`, () =>
     $.process.run(['sh', '-c', SESSIONS_SCRIPT, 'sh', encodeProjectDir(project.path), String(SESSION_LIMIT * 2)]))
   const sessions = parseSessions(stdout).slice(0, SESSION_LIMIT)
   await update($, view, (): HopView => ({ kind: 'sessions', root, project, sessions, page: 0 }))
 }
+
+const sessionCount = (n: number): string => `${n} session${n === 1 ? '' : 's'}`
 
 const gitLabel = (git: Project['git']): string => (git ? `⎇ ${clip(git.branch, 14)}${git.unchecked ? ' ?' : git.dirty ? ' ●' : ''}` : '')
 
@@ -153,22 +155,22 @@ export const register: Register = on => {
       }
       if (pick.kind === 'filter') {
         await update($, view, (): HopView => ({ ...current, filter: pick.filter, page: 0 }))
-        return { drop: `project-hop: "${pick.filter}" ile süzüldü` }
+        return { drop: `project-hop: filtered by "${pick.filter}"` }
       }
     }
     if (current.kind === 'sessions') {
       const pick = matchSession(e.text, current.sessions)
       if (pick.kind === 'back') {
         later($, () => showProjects($, current.root, undefined))
-        return { drop: 'project-hop: projeler' }
+        return { drop: 'project-hop: projects' }
       }
       if (pick.kind === 'new') {
         later($, () => hop($, current.project))
-        return { drop: `project-hop: ${current.project.name} · yeni session` }
+        return { drop: `project-hop: ${current.project.name} · new session` }
       }
       if (pick.kind === 'resume') {
         later($, () => hop($, current.project, pick.id))
-        return { drop: `project-hop: ${current.project.name} · devam` }
+        return { drop: `project-hop: ${current.project.name} · resume` }
       }
     }
     return next(e)
@@ -203,7 +205,7 @@ export const register: Register = on => {
 
     const now = await $.clock.now()
     const width = e.props.bodyColumns
-    const close = <Button key="close" label="× kapat" hotkey="x" onPress={() => update($, view, () => HIDDEN)} />
+    const close = <Button key="close" label="× close" hotkey="x" onPress={() => update($, view, () => HIDDEN)} />
     // Header, footer and the two edge stops take a row each; the rest is the page.
     const pageRows = Math.max(3, e.props.maxRows - 4)
     pageSize = pageRows
@@ -231,19 +233,19 @@ export const register: Register = on => {
             <Text bold>▸ {clip(current.root, Math.max(10, width - 50))}</Text>
             <Text dimColor>
               {'  '}
-              {shown.length}/{current.projects.length} proje{current.filter ? ` · "${current.filter}"` : ''}{'  '}
+              {shown.length}/{current.projects.length} projects{current.filter ? ` · "${current.filter}"` : ''}{'  '}
             </Text>
             {spinner(scanning ?? (jobs.has('git') ? 'git' : undefined))}
             {pager(page.at, page.pages)}
             {current.filter ? (
-              <Button key="unfilter" label="süzgeci kaldır" onPress={() => update($, view, (): HopView => ({ ...current, filter: '', page: 0 }))} />
+              <Button key="unfilter" label="clear filter" onPress={() => update($, view, (): HopView => ({ ...current, filter: '', page: 0 }))} />
             ) : null}
             {close}
           </Box>
-          {edge(EDGE_UP, '  ▲ önceki sayfa', -1, page.at > 0)}
+          {edge(EDGE_UP, '  ▲ previous page', -1, page.at > 0)}
           {page.rows.map((project, r) => {
             const index = page.start + r
-            const sessions = project.sessions > 0 ? ` · ${project.sessions} session` : ''
+            const sessions = project.sessions > 0 ? ` · ${sessionCount(project.sessions)}` : ''
             return (
               <Button
                 key={`project-${index}`}
@@ -255,8 +257,8 @@ export const register: Register = on => {
               />
             )
           })}
-          {edge(EDGE_DOWN, '  ▼ sonraki sayfa', 1, page.at < page.pages - 1)}
-          <Text dimColor>ctrl+x tab → ↑↓ gez, Enter aç · ya da adını yaz + Enter</Text>
+          {edge(EDGE_DOWN, '  ▼ next page', 1, page.at < page.pages - 1)}
+          <Text dimColor>ctrl+x tab → ↑↓ to move, Enter to open · or type a name + Enter</Text>
         </Box>
       )
     }
@@ -267,31 +269,31 @@ export const register: Register = on => {
         <Box>
           <Text bold>▸ {current.project.name}</Text>
           {current.project.git ? <Text color="green">  {gitLabel(current.project.git)}</Text> : null}
-          <Text dimColor>  {current.project.sessions} session  </Text>
+          <Text dimColor>  {sessionCount(current.project.sessions)}  </Text>
           {spinner(scanning)}
           {pager(page.at, page.pages)}
-          <Button key="new" label="n yeni" hotkey="n" variant="primary" onPress={() => hop($, current.project)} />
+          <Button key="new" label="n new" hotkey="n" variant="primary" onPress={() => hop($, current.project)} />
           <Text> </Text>
-          <Button key="back" label="b geri" hotkey="b" onPress={() => showProjects($, current.root, undefined)} />
+          <Button key="back" label="b back" hotkey="b" onPress={() => showProjects($, current.root, undefined)} />
           <Text> </Text>
           {close}
         </Box>
-        {current.sessions.length === 0 ? <Text dimColor>  Bu projede kayıtlı session yok, n ile yenisini aç.</Text> : null}
-        {edge(EDGE_UP, '  ▲ önceki sayfa', -1, page.at > 0)}
+        {current.sessions.length === 0 ? <Text dimColor>  No saved sessions in this project yet; press n to start one.</Text> : null}
+        {edge(EDGE_UP, '  ▲ previous page', -1, page.at > 0)}
         {page.rows.map((session, r) => {
           const i = page.start + r
           return (
             <Button
               key={`session-${i}`}
-              label={`${String(i + 1).padStart(2)}  ${timeAgo(session.mtime, now).padEnd(7)} ${clip(session.title, Math.max(20, width - 16))}`}
+              label={`${String(i + 1).padStart(2)}  ${timeAgo(session.mtime, now).padEnd(9)} ${clip(session.title, Math.max(20, width - 16))}`}
               plain
               autoFocus={r === 0 ? true : undefined}
               onPress={() => hop($, current.project, session.id)}
             />
           )
         })}
-        {edge(EDGE_DOWN, '  ▼ sonraki sayfa', 1, page.at < page.pages - 1)}
-        <Text dimColor>↑↓ gez, Enter devam · numara = devam · c = en sonuncusu · n = yeni · b = geri</Text>
+        {edge(EDGE_DOWN, '  ▼ next page', 1, page.at < page.pages - 1)}
+        <Text dimColor>↑↓ + Enter or a number to resume · c = latest · n = new · b = back</Text>
       </Box>
     )
   })

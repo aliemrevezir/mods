@@ -125,11 +125,11 @@ export const looksLikeRoot = (projects: readonly Project[], isRepo: boolean): bo
 export const timeAgo = (seconds: number, now: number): string => {
   if (seconds <= 0) return '—'
   const s = Math.max(0, Math.round(now / 1000 - seconds))
-  if (s < 60) return 'şimdi'
-  if (s < 3600) return `${Math.floor(s / 60)} dk`
-  if (s < 86400) return `${Math.floor(s / 3600)} sa`
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)} gün`
-  return `${Math.floor(s / (86400 * 30))} ay`
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`
+  return `${Math.floor(s / (86400 * 30))}mo ago`
 }
 
 // A braille spinner, one frame per tick.
@@ -163,9 +163,9 @@ export type SessionPick = { kind: 'new' } | { kind: 'resume'; id: string } | { k
 
 export const matchSession = (text: string, sessions: readonly SessionInfo[]): SessionPick => {
   const typed = text.trim().toLowerCase()
-  if (typed === 'n' || typed === 'new' || typed === 'yeni') return { kind: 'new' }
-  if (typed === 'b' || typed === '..' || typed === 'geri') return { kind: 'back' }
-  if ((typed === 'c' || typed === 'continue' || typed === 'devam') && sessions[0]) {
+  if (typed === 'n' || typed === 'new') return { kind: 'new' }
+  if (typed === 'b' || typed === '..' || typed === 'back') return { kind: 'back' }
+  if ((typed === 'c' || typed === 'continue') && sessions[0]) {
     return { kind: 'resume', id: sessions[0].id }
   }
   if (/^\d+$/.test(typed)) {

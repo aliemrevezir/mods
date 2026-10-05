@@ -89,29 +89,29 @@ class Screen:
 
 ROOT = '~/code'
 PROJECTS = [
-    ('finance-dashboard', 'feat/charts', True, '5 dk', 9),
-    ('acme-api', 'main', True, '2 sa', 12),
-    ('portfolio-site', 'main', False, '1 gün', 4),
-    ('habit-tracker', 'develop', False, '2 gün', 6),
-    ('recipe-box', 'main', True, '4 gün', 3),
-    ('dotfiles', 'master', False, '6 gün', 2),
-    ('weather-cli', 'main', False, '9 gün', 5),
-    ('chat-bot', 'main', False, '12 gün', 7),
-    ('pixel-editor', 'canvas-v2', True, '18 gün', 3),
-    ('blog-engine', 'main', False, '1 ay', 2),
+    ('finance-dashboard', 'feat/charts', True, '5m ago', 9),
+    ('acme-api', 'main', True, '2h ago', 12),
+    ('portfolio-site', 'main', False, '1d ago', 4),
+    ('habit-tracker', 'develop', False, '2d ago', 6),
+    ('recipe-box', 'main', True, '4d ago', 3),
+    ('dotfiles', 'master', False, '6d ago', 2),
+    ('weather-cli', 'main', False, '9d ago', 5),
+    ('chat-bot', 'main', False, '12d ago', 7),
+    ('pixel-editor', 'canvas-v2', True, '18d ago', 3),
+    ('blog-engine', 'main', False, '1mo ago', 2),
     ('notes', None, False, '—', 0),
     ('sandbox', None, False, '—', 0),
 ]
 SESSIONS = [
-    ('5 dk', 'Grafik bileşenlerini ayrı dosyalara böl'),
-    ('3 sa', 'Aylık gider tablosuna kategori filtresi ekle'),
-    ('1 gün', 'CSV içe aktarmada tarih biçimi hatası'),
-    ('2 gün', 'Dark mode renkleri kontrast testinden geçmiyor'),
-    ('4 gün', 'Bütçe uyarıları için e-posta bildirimi'),
-    ('6 gün', 'Recharts yerine visx denemesi'),
-    ('9 gün', 'Playwright testlerini CI’a bağla'),
-    ('2 hafta', 'İlk kurulum: Vite + React + Tailwind'),
-    ('1 ay', 'Proje fikri ve veri modeli'),
+    ('5m ago', 'Split the chart components into separate files'),
+    ('3h ago', 'Add a category filter to the monthly expenses table'),
+    ('1d ago', 'Date format bug in CSV import'),
+    ('2d ago', 'Dark mode colors fail the contrast check'),
+    ('4d ago', 'Email notifications for budget alerts'),
+    ('6d ago', 'Try visx instead of Recharts'),
+    ('9d ago', 'Wire the Playwright tests into CI'),
+    ('14d ago', 'Initial setup: Vite + React + Tailwind'),
+    ('1mo ago', 'Project idea and data model'),
 ]
 PAGE = 6
 NAME_W = 32
@@ -134,39 +134,39 @@ def project_rows(page, focus, git):
     start = page * PAGE
     rows = []
     if page > 0:
-        rows.append([seg('  ▲ önceki sayfa', DIM)])
+        rows.append([seg('  ▲ previous page', DIM)])
     for i, (name, branch, dirty, ago, n) in enumerate(PROJECTS[start:start + PAGE]):
         label = f'📁 {name.ljust(NAME_W)}  {(git_label(branch, dirty) if git else "").ljust(GIT_W if git else 0)}{ago}'
-        label += f' · {n} session' if n else ''
+        label += f' · {n} session{"" if n == 1 else "s"}' if n else ''
         focused = focus == start + i
         rows.append([seg(label, FG if n or focused else DIM, inv=focused)])
     if start + PAGE < len(PROJECTS):
-        rows.append([seg('  ▼ sonraki sayfa', DIM)])
+        rows.append([seg('  ▼ next page', DIM)])
     return rows
 
 
 def band_projects(page, focus=None, git=True, spin=None):
     pages = (len(PROJECTS) + PAGE - 1) // PAGE
-    head = [seg(f'▸ {ROOT}', bold=True), seg(f'  {len(PROJECTS)}/{len(PROJECTS)} proje  ', DIM)]
+    head = [seg(f'▸ {ROOT}', bold=True), seg(f'  {len(PROJECTS)}/{len(PROJECTS)} projects  ', DIM)]
     if spin is not None:
         head.append(seg(f'{SPIN[spin % 10]} git…  ', CYAN))
-    head += [button('▲'), seg(f' {page + 1}/{pages} ', DIM), button('▼'), seg('  '), button('× kapat')]
-    return [head, *project_rows(page, focus, git), [seg('ctrl+x tab → ↑↓ gez, Enter aç · ya da adını yaz + Enter', DIM)]]
+    head += [button('▲'), seg(f' {page + 1}/{pages} ', DIM), button('▼'), seg('  '), button('× close')]
+    return [head, *project_rows(page, focus, git), [seg('ctrl+x tab → ↑↓ to move, Enter to open · or type a name + Enter', DIM)]]
 
 
 def band_sessions(focus):
     name, branch, dirty, _, n = PROJECTS[0]
-    head = [seg(f'▸ {name}', bold=True), seg(f'  {git_label(branch, dirty)}', GREEN), seg(f'  {n} session  ', DIM),
-            button('▲'), seg(' 1/2 ', DIM), button('▼'), seg('  '), button('n yeni', True), seg(' '), button('b geri'), seg(' '), button('× kapat')]
+    head = [seg(f'▸ {name}', bold=True), seg(f'  {git_label(branch, dirty)}', GREEN), seg(f'  {n} sessions  ', DIM),
+            button('▲'), seg(' 1/2 ', DIM), button('▼'), seg('  '), button('n new', True), seg(' '), button('b back'), seg(' '), button('× close')]
     rows = [head]
     for i, (ago, title) in enumerate(SESSIONS[:PAGE]):
-        rows.append([seg(f'{i + 1:>2}  {ago.ljust(7)} {title}', inv=focus == i)])
-    rows.append([seg('  ▼ sonraki sayfa', DIM)])
-    rows.append([seg('↑↓ gez, Enter devam · numara = devam · c = en sonuncusu · n = yeni · b = geri', DIM)])
+        rows.append([seg(f'{i + 1:>2}  {ago.ljust(9)} {title}', inv=focus == i)])
+    rows.append([seg('  ▼ next page', DIM)])
+    rows.append([seg('↑↓ + Enter or a number to resume · c = latest · n = new · b = back', DIM)])
     return rows
 
 
-def frame(band=None, prompt='', cursor=True, transcript=(), hint='? kısayollar için', overlay=None):
+def frame(band=None, prompt='', cursor=True, transcript=(), hint='? for shortcuts', overlay=None):
     s = Screen()
     # Welcome box.
     W = 44
@@ -201,7 +201,7 @@ for i in range(1, len('/projects') + 1):
 add(frame(prompt='/projects'), 400)
 # 2. Scanning the folder.
 for t in range(8):
-    add(frame(band=[[seg(f'{SPIN[t % 10]} projeler taranıyor…  ', CYAN)]], overlay='Enter' if t < 5 else None), 90)
+    add(frame(band=[[seg(f'{SPIN[t % 10]} scanning projects…  ', CYAN)]], overlay='Enter' if t < 5 else None), 90)
 # 3. The list lands, git fills in behind it.
 for t in range(8):
     add(frame(band=band_projects(0, git=False, spin=t)), 90)
@@ -220,7 +220,7 @@ for f in range(PAGE - 2, -1, -1):
 add(frame(band=band_projects(0, focus=0), cursor=False), 500)
 # 5. Opening it: its sessions.
 for t in range(6):
-    head = [seg(f'▸ {ROOT}', bold=True), seg(f'  12/12 proje  ', DIM), seg(f'{SPIN[t % 10]} finance-dashboard session\'ları okunuyor…', CYAN)]
+    head = [seg(f'▸ {ROOT}', bold=True), seg(f'  12/12 projects  ', DIM), seg(f'{SPIN[t % 10]} reading finance-dashboard sessions…', CYAN)]
     add(frame(band=[head, *band_projects(0, focus=0)[1:]], cursor=False, overlay='Enter'), 90)
 add(frame(band=band_sessions(0), cursor=False), 1300)
 for f in (1, 2, 1, 0):
@@ -232,9 +232,9 @@ transcript = [
     [seg('  ⎿  Working directory: ~/code/finance-dashboard', DIM)],
     [seg('❯ /resume', DIM)],
     [],
-    [seg('> ', DIM), seg('Grafik bileşenlerini ayrı dosyalara böl')],
+    [seg('> ', DIM), seg('Split the chart components into separate files')],
     [],
-    [seg('● ', FG), seg('Tamam, charts/ altında üç dosyaya ayırıyorum: LineChart, BarChart, Legend.')],
+    [seg('● ', FG), seg('Sure, splitting them into three files under charts/: LineChart, BarChart, Legend.')],
 ]
 for n in range(1, len(transcript) + 1):
     add(frame(transcript=transcript[:n], hint='finance-dashboard · feat/charts'), 160)
