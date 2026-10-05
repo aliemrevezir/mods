@@ -1,8 +1,11 @@
 {
-  "name": "prompt-dock",
-  "owner": { "name": "Ali Emre Vezir", "url": "https://github.com/aliemrevezir" },
+  "name": "aliemrevezir-mods",
+  "owner": {
+    "name": "Ali Emre Vezir",
+    "url": "https://github.com/aliemrevezir"
+  },
   "metadata": {
-    "description": "prompt-dock: navigate your prompts and quote-reply from selected text in Claude Code"
+    "description": "Ali Emre Vezir's Claude Code mods"
   },
   "plugins": [
     {
@@ -10,7 +13,9 @@
       "source": "./plugins/prompt-dock",
       "description": "A rail of your prompts above the input (hover to preview, click to jump), a dock beside the transcript, and quote-reply from any selected text",
       "version": "1.0.0",
-      "author": { "name": "Ali Emre Vezir" },
+      "author": {
+        "name": "Ali Emre Vezir"
+      },
       "license": "MIT"
     }
   ]
